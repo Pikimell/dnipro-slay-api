@@ -1,0 +1,55 @@
+service: AWS-BACKEND
+
+frameworkVersion: '4'
+
+plugins:
+  - serverless-offline
+  - serverless-prune-plugin
+
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-2
+  stage: dev
+  profile: serverlessTemplateUser
+  timeout: 10
+
+custom:
+  prune: # автоматичне видалення старих версій
+    automatic: true
+    number: 3 # залишати останні 3 версії
+
+functions:
+  templateGet:
+    handler: src/handlers/templates/getTemplateHandler.getTemplateHandler
+    events:
+      - http:
+          path: template
+          method: get
+          cors: true
+
+  templatePost:
+    handler: src/handlers/templates/createTemplateHandler.createTemplateHandler
+    events:
+      - http:
+          path: templates
+          method: post
+          cors: true
+
+  templatePut:
+    handler: src/handlers/templates/putTemplateHandler.putTemplateHandler
+    events:
+      - http:
+          path: templates/{templateId}
+          method: put
+          cors: true
+
+  templateDelete:
+    handler: src/handlers/templates/deleteTemplateHandler.deleteTemplateHandler
+    events:
+      - http:
+          path: templates/{templateId}
+          method: delete
+          cors: true

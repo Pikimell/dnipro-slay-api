@@ -1,0 +1,35 @@
+{
+  "name": "aws-backend",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "remove": "sls remove",
+    "deploy": "sls deploy",
+    "start": "sls offline start",
+    "push": "git add . && git commit -m 'update' && git push"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-github"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/your-github"
+  },
+  "devDependencies": {
+    "globals": "^15.3.0",
+    "nodemon": "^3.1.0",
+    "serverless": "^4.0.0",
+    "serverless-offline": "^14.0.4",
+    "serverless-prune-plugin": "^2.1.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "http-errors": "^2.0.0",
+    "joi": "^17.13.1",
+    "mongoose": "^8.4.1"
+  }
+}
