@@ -9,6 +9,9 @@ import { errorHandler } from "./middlewares/errorHandler.js";
 
 import router from "./routes/index.js";
 import { requestLogger } from "./middlewares/requestLogger.js";
+import { convertToEvent } from "./services/openAI.js";
+import { parseKontramarkaItems } from "./parsers/kontramarka.js";
+import { parseKavaItems } from "./parsers/kava.js";
 
 const app = express();
 
@@ -33,3 +36,9 @@ if (process.env.NODE_ENV !== "production") {
     console.log(`🚀 Express server running on http://localhost:${PORT}`);
   });
 }
+
+const initTest = async ()=>{
+
+}
+
+initTest();

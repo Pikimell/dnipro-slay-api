@@ -11,3 +11,9 @@ functions:
     handler: dist/index.handler
     events:
       - httpApi: '*'
+  parse:
+    handler: dist/handlers/parseHandler.parseHandler
+    events:
+      - schedule:
+          rate: cron(0 0,6,12,18 * * ? *)
+          enabled: true
