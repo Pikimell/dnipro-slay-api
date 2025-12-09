@@ -1,6 +1,6 @@
 import { quicklyParseItems } from "./parser.js";
 
-const SELECTOR = '#events-list';// console.log('WAIT FOR LOAD');
+const SELECTOR = '#events-list';
 const urlList = [
     'https://dnepr.kontramarka.ua/uk/concert/dnepropetrovskaa-filarmonia-im-lbkogana-178.html',
     'https://dnepr.kontramarka.ua/uk/concert/planetarium-noosphere-2654.html',
@@ -25,6 +25,25 @@ const urlList = [
 
 export async function parseKontramarkaItems(){
     const res = await quicklyParseItems(urlList[0], SELECTOR)
-    
 }
 
+
+
+//!======================================================
+
+/* 
+const items = document.querySelectorAll('#events-list .cat_item__card')
+const itemsValue = [...items].map(el=>el.innerHTML).slice(0,1);
+function save(htmlItem){
+    const url = 'http://localhost:3000/events/parse-events';
+    const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({htmlItem})
+    }
+    fetch(url, options)
+}
+itemsValue.forEach(save)
+ */

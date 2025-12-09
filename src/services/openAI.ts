@@ -34,7 +34,7 @@ export const convertToEvent = async (info: string) => {
 {
   "title": String (обовʼязково),
   "description": String (обовʼязково),
-  "dateTime": Date (обовʼязково, формат ISO 8601),
+  "dateTime": Date (необовʼязково, формат ISO 8601; якщо невідомо — null),
   "image": String (обовʼязково, валідний URL),
   "url": String (обовʼязково, валідний URL),
   "typeOfEvent": String (обовʼязково),
@@ -53,7 +53,7 @@ export const convertToEvent = async (info: string) => {
 2. Всі поля повинні бути заповнені згідно обовʼязковості.
 3. Якщо minPrice або maxPrice відсутні в даних — додавай ці поля з таким же значенням як і price.
 4. Всі числа повинні бути типу Number, не рядок.
-5. dateTime ПОВИНЕН бути в ISO форматі: YYYY-MM-DDTHH:mm:ss.sssZ
+5. Якщо відомий час події — dateTime в ISO форматі: YYYY-MM-DDTHH:mm:ss.sssZ, якщо ні — став null і не вигадуй.
 6. Якщо ціна одна — вона йде в поле "price".
 7. Якщо є діапазон цін — price = minPrice.
 8. Якщо тривалість не вказана — визнач її логічно (наприклад: "2 hours", "1 day").

@@ -1,5 +1,6 @@
 import { chromium } from "playwright";
 import { convertToEvent } from "../services/openAI.js";
+import { EventCollection } from "../database/models/event.js";
 
 export const quicklyParseItems = async (url: string, selector: string) => {
   console.log("Launch");
@@ -51,6 +52,16 @@ export const parseItems = async (htmlItem: string | string[]) => {
   return res.filter(el=>el.status === 'fulfilled').map(el=>el.value);
 }
 
-const parseItem = (html:string)=>{
-  return convertToEvent(html);
+const parseItem = async (html:string)=>{
+    const re = /<a[^>]*\bclass="[^"]*\bblock-info__title\b[^"]*"[^>]*\btitle="([^"]+)"/;
+    const match = html.match(re);
+
+    if (match) {
+     const title =match[1];
+     const item = await EventCollection.findOne({title: title}) 
+     if(item) {
+      throw new Error('skip')
+      }
+    }
+  return await convertToEvent(html);
 }

@@ -151,8 +151,8 @@ export const searchEvents = async (query: string, limit = 15) => {
 
 
 export const parseEventsService = async (htmlItems: string | string[])=>{
+
   const items = await parseItems(htmlItems);
-  console.log(items);
   
   const promises = items.map(el=>EventCollection.create(el));
   const res = await Promise.allSettled(promises);
@@ -162,6 +162,6 @@ export const parseEventsService = async (htmlItems: string | string[])=>{
       console.log('ERROR', el.reason)
     }
   })
-  
+
   return res.filter(el=>el.status === 'fulfilled').map(el=>el.value);
 }
