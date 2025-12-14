@@ -3,6 +3,7 @@ import type { FilterQuery } from "mongoose";
 import { EventCollection, type Event } from "../database/models/event.js";
 import { calculatePaginationData } from "../utils/calculatePaginationData.js";
 import { parseItems } from "../parsers/parser.js";
+import https from "node:https";
 
 export type EventQueryFilters = Partial<
   Pick<Event, "typeOfEvent" | "place" | "site"> & {
@@ -164,4 +165,74 @@ export const parseEventsService = async (htmlItems: string | string[])=>{
   })
 
   return res.filter(el=>el.status === 'fulfilled').map(el=>el.value);
-}
+};
+
+type Coordinates = { latitude: number; longitude: number };
+
+const DNIPRO_CENTER: Coordinates = { latitude: 48.464718, longitude: 35.046183 };
+
+const geocodeInDnipro = async (query: string): Promise<Coordinates | null> => {
+  const searchQuery = `${query}, Дніпро, Україна`;
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("q", searchQuery);
+  url.searchParams.set("limit", "1");
+
+  const body = await new Promise<string>((resolve, reject) => {
+    https
+      .get(
+        url,
+        {
+          headers: {
+            "User-Agent": "dnipro-slay-api/1.0",
+          },
+        },
+        (res) => {
+          const chunks: Uint8Array[] = [];
+          res.on("data", (chunk) => chunks.push(chunk));
+          res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+        }
+      )
+      .on("error", reject);
+  });
+
+  try {
+    const [first] = JSON.parse(body) as Array<{ lat: string; lon: string }> | undefined;
+    if (!first) {
+      return null;
+    }
+
+    const latitude = Number(first.lat);
+    const longitude = Number(first.lon);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return null;
+    }
+
+    return { latitude, longitude };
+  } catch {
+    return null;
+  }
+};
+
+export const getEventCoordinates = async (eventId: string): Promise<Coordinates | null> => {
+  const event = await EventCollection.findById(eventId);
+  if (!event) {
+    return null;
+  }
+
+  if (event.coordinates?.latitude !== null && event.coordinates?.longitude !== null) {
+    return {
+      latitude: event.coordinates.latitude,
+      longitude: event.coordinates.longitude,
+    };
+  }
+
+  const coordinates = await geocodeInDnipro(event.place);
+
+  if (coordinates) {
+    await EventCollection.findByIdAndUpdate(eventId, { coordinates });
+    return coordinates;
+  }
+
+  return DNIPRO_CENTER;
+};

@@ -1,8 +1,6 @@
 import { RequestHandler } from "express";
 
-
 import * as authServices from "../services/authService.js";
-import { ONE_DAY, ONE_MONTH } from "../helpers/constants.js";
 
 export const registerUserController: RequestHandler = async (req, res, next) => {
   try {
@@ -30,28 +28,12 @@ export const loginController: RequestHandler = async (req, res, next) => {
 
     const session = await authServices.loginService({ email, password });
 
-    res.cookie("refreshToken", session.refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      maxAge: ONE_MONTH,
+    res.status(200).json({
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      idToken: session.idToken,
+      tokenType: "Bearer",
     });
-
-    res.cookie("accessToken", session.accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      maxAge: ONE_DAY,
-    });
-
-    res.cookie("sessionId", session.idToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      maxAge: ONE_DAY,
-    });
-
-    res.status(200).json({ accessToken: session.accessToken });
   } catch (err) {
     next(err);
   }
@@ -61,42 +43,29 @@ export const logoutController: RequestHandler = async (_req, res, next) => {
   try {
     await authServices.logoutService();
 
-    res.clearCookie("refreshToken");
-    res.clearCookie("accessToken");
-    res.clearCookie("sessionId");
-
     res.status(200).json({ message: "Logged out successfully!" });
   } catch (err) {
     next(err);
   }
 };
 
-export const refreshController: RequestHandler = async (_req, res, next) => {
+export const refreshController: RequestHandler = async (req, res, next) => {
   try {
-    const session = await authServices.refreshService();
+    const { refreshToken } = req.body as { refreshToken?: string };
 
-    res.cookie("refreshToken", session.refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      maxAge: ONE_MONTH,
+    if (!refreshToken) {
+      res.status(400).json({ message: "Missing refreshToken" });
+      return;
+    }
+
+    const session = await authServices.refreshService(refreshToken);
+
+    res.status(200).json({
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      idToken: session.idToken,
+      tokenType: "Bearer",
     });
-
-    res.cookie("accessToken", session.accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      maxAge: ONE_DAY,
-    });
-
-    res.cookie("sessionId", session.idToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      maxAge: ONE_DAY,
-    });
-
-    res.status(200).json({ accessToken: session.accessToken });
   } catch (err) {
     next(err);
   }

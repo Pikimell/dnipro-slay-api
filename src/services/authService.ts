@@ -140,33 +140,33 @@ export const logoutService = async () => {
   });
 };
 
-export const refreshService = async (): Promise<AuthSession> => {
-  return new Promise<AuthSession>((resolve, reject) => {
-    const currentUser = userPool.getCurrentUser();
-    if (!currentUser) {
-      return reject(new Error("No user logged in"));
+export const refreshService = async (refreshToken: string): Promise<AuthSession> => {
+  try {
+    const result = await cognito
+      .initiateAuth({
+        AuthFlow: "REFRESH_TOKEN_AUTH",
+        ClientId: CLIENT_ID,
+        AuthParameters: {
+          REFRESH_TOKEN: refreshToken,
+        },
+      })
+      .promise();
+
+    const tokens = result.AuthenticationResult;
+
+    if (!tokens?.AccessToken || !tokens.IdToken) {
+      throw new Error("Failed to refresh session");
     }
 
-    currentUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
-      if (err || !session?.isValid()) {
-        return reject(new Error("Session is invalid or expired"));
-      }
-
-      currentUser.refreshSession(
-        session.getRefreshToken(),
-        (refreshErr: Error | null, newSession: CognitoUserSession | null) => {
-          if (refreshErr || !newSession) {
-            return reject(refreshErr ?? new Error("Failed to refresh session"));
-          }
-          resolve({
-            accessToken: newSession.getAccessToken().getJwtToken(),
-            idToken: newSession.getIdToken().getJwtToken(),
-            refreshToken: newSession.getRefreshToken().getToken(),
-          });
-        }
-      );
-    });
-  });
+    return {
+      accessToken: tokens.AccessToken,
+      idToken: tokens.IdToken,
+      refreshToken: tokens.RefreshToken ?? refreshToken,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    throw new Error(`Failed to refresh session: ${message}`);
+  }
 };
 
 export const requestResetEmailService = async (email: string) => {

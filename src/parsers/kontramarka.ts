@@ -1,4 +1,4 @@
-import { quicklyParseItems } from "./parser.js";
+// import { quicklyParseItems } from "./parser.js";
 
 const SELECTOR = '#events-list';
 const urlList = [
@@ -24,7 +24,7 @@ const urlList = [
 ]
 
 export async function parseKontramarkaItems(){
-    const res = await quicklyParseItems(urlList[0], SELECTOR)
+    // const res = await quicklyParseItems(urlList[0], SELECTOR)
 }
 
 

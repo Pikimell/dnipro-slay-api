@@ -1,11 +1,11 @@
-import { convertToEvent } from "../services/openAI.js"
-import { quicklyParseItems } from "./parser.js"
+// import { convertToEvent } from "../services/openAI.js"
+// import { quicklyParseItems } from "./parser.js"
 
-const SELECTOR = '.gcell.gcell--12.gcell--md-6 > .certificate-block'
-const URL = 'https://kava.ua/uk/dnepr/certificates?disable-city=0&city%5B1%5D=1&min-price=0&max-price=27000'
+// const SELECTOR = '.gcell.gcell--12.gcell--md-6 > .certificate-block'
+// const URL = 'https://kava.ua/uk/dnepr/certificates?disable-city=0&city%5B1%5D=1&min-price=0&max-price=27000'
 
 export async function parseKavaItems(){
-    const res = await quicklyParseItems(URL, SELECTOR)
+    // const res = await quicklyParseItems(URL, SELECTOR)
     
 }
 

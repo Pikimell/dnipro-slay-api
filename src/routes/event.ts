@@ -6,6 +6,7 @@ const router = Router();
 
 router.get("/search", eventControllers.searchEventsController);
 router.get("/upcoming", eventControllers.getUpcomingEventsController);
+router.get("/:eventId/coordinates", eventControllers.getEventCoordinatesController);
 router.get("/", eventControllers.getAllEventsController);
 router.get("/:eventId", eventControllers.getEventByIdController);
 router.post("/parse-events", eventControllers.parseEventsController);

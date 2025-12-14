@@ -1,42 +1,42 @@
-import { chromium } from "playwright";
+// import { chromium } from "playwright";
 import { convertToEvent } from "../services/openAI.js";
 import { EventCollection } from "../database/models/event.js";
 
 export const quicklyParseItems = async (url: string, selector: string) => {
-  console.log("Launch");
+//   console.log("Launch");
   
-    const browser = await chromium.launch({ headless: true });
-    console.log("OpenPage");
-  const page = await browser.newPage();
+//     const browser = await chromium.launch({ headless: true });
+//     console.log("OpenPage");
+//   const page = await browser.newPage();
 
-  try {
-    console.log('WAIT FOR LOAD');
+//   try {
+//     console.log('WAIT FOR LOAD');
     
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 250_000 });
- console.log('WAIT FOR SELECTOR');
-    // якщо елемент підвантажується не одразу — дочекаємось
-    await page.waitForSelector(selector, { state: "attached", timeout: 25_000 });
+//     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 250_000 });
+//  console.log('WAIT FOR SELECTOR');
+//     // якщо елемент підвантажується не одразу — дочекаємось
+//     await page.waitForSelector(selector, { state: "attached", timeout: 25_000 });
 
-    // аналог root.textContent
-    const fullText = await page.evaluate(() =>
-      (document.documentElement?.textContent ?? "").trim()
-    );
+//     // аналог root.textContent
+//     const fullText = await page.evaluate(() =>
+//       (document.documentElement?.textContent ?? "").trim()
+//     );
 
-    // аналог item?.textContent
-    const itemText = await page.$eval(
-      selector,
-      (el) => (el.textContent ?? "").trim()
-    );
+//     // аналог item?.textContent
+//     const itemText = await page.$eval(
+//       selector,
+//       (el) => (el.textContent ?? "").trim()
+//     );
 
-    console.log(fullText);
-    console.log(itemText);
-  } catch (e) {
+//     console.log(fullText);
+//     console.log(itemText);
+//   } catch (e) {
 
-    console.error(e);
-  } finally {
-    await page.close();
-    await browser.close();
-  }
+//     console.error(e);
+//   } finally {
+//     await page.close();
+//     await browser.close();
+//   }
 };
 
 export const parseItems = async (htmlItem: string | string[]) => {

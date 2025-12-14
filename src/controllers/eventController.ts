@@ -41,6 +41,22 @@ export const getEventByIdController: RequestHandler = async (req, res, next) => 
   }
 };
 
+export const getEventCoordinatesController: RequestHandler = async (req, res, next) => {
+  try {
+    const eventId = req.params.eventId;
+    const coordinates = await eventServices.getEventCoordinates(eventId);
+
+    if (!coordinates) {
+      res.status(404).json({ message: "Event not found" });
+      return;
+    }
+
+    res.status(200).json(coordinates);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const createEventController: RequestHandler = async (req, res, next) => {
   try {
     const event = await eventServices.createEvent(req.body);

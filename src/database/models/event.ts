@@ -57,6 +57,18 @@ const eventSchema = new Schema(
       type: String,
       required: true,
     },
+    coordinates: {
+      latitude: {
+        type: Number,
+        required: false,
+        default: null,
+      },
+      longitude: {
+        type: Number,
+        required: false,
+        default: null,
+      },
+    },
   },
   {
     versionKey: false,
