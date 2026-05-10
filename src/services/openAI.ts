@@ -3,19 +3,19 @@ import { env } from '../utils/env.js';
 import { parseJSON } from '../utils/parseJson.js';
 
 interface OpenAiMessage {
-    role: 'system' | 'user';
-    content: string;
+  role: 'system' | 'user';
+  content: string;
 }
-interface OpenAiProps{
-    messages: OpenAiMessage[];
-    temperature?: number;
-    max_tokens?: number;
+interface OpenAiProps {
+  messages: OpenAiMessage[];
+  temperature?: number;
+  max_tokens?: number;
 }
 export const getGPTAnswer = async (options: OpenAiProps) => {
-    const model = 'gpt-4o-mini';
-    const token = env('TOKEN');
-    const openai = new OpenAI({ apiKey: token });
-  
+  const model = 'gpt-4o-mini';
+  const token = env('TOKEN');
+  const openai = new OpenAI({ apiKey: token });
+
   try {
     const chat = await openai.chat.completions.create({ model, ...options });
     return chat.choices?.[0]?.message?.content ?? '';
@@ -25,9 +25,8 @@ export const getGPTAnswer = async (options: OpenAiProps) => {
   }
 };
 
-
 export const convertToEvent = async (info: string) => {
-    const prompt = `
+  const prompt = `
 Ти — сервіс нормалізації подій. 
 На основі наданого тексту витягни та заповни обʼєкт події СУВОРО у форматі JSON, який ПОВИНЕН відповідати цій схемі:
 
@@ -60,16 +59,18 @@ export const convertToEvent = async (info: string) => {
 9. Поля image та url ПОВИННІ містити прямі URL.
 10. site — це домен або назва сайту-джерела.
 11. Якщо якесь обовʼязкове поле НЕМОЖЛИВО визначити — ВСТАВ null, а не вигадуй. Виключення Description. Якщо опису немає може самостійно створити дуже короткий опис події.
-`
+`;
 
-    const data:OpenAiProps  = {
-        messages: [
-            {role: 'system', content: prompt},
-            {role: 'user', content: info},
-        ],
-        max_tokens: 12000,
-    }
-    
-    const res = await getGPTAnswer(data);
-    return parseJSON(res);
-}
+  const data: OpenAiProps = {
+    messages: [
+      { role: 'system', content: prompt },
+      { role: 'user', content: info },
+    ],
+    max_tokens: 12000,
+  };
+
+  const res = await getGPTAnswer(data);
+  console.log(res);
+
+  return parseJSON(res);
+};

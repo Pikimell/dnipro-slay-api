@@ -12,12 +12,15 @@ import { requestLogger } from "./middlewares/requestLogger.js";
 import { convertToEvent } from "./services/openAI.js";
 import { parseKontramarkaItems } from "./parsers/kontramarka.js";
 import { parseKavaItems } from "./parsers/kava.js";
+import docsRouter from "./docs/swagger.js";
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 app.use(cookieParser());
+
+app.use("/docs", docsRouter);
 
 app.use(initMongoDB);
 

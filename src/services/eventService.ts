@@ -197,7 +197,8 @@ const geocodeInDnipro = async (query: string): Promise<Coordinates | null> => {
   });
 
   try {
-    const [first] = JSON.parse(body) as Array<{ lat: string; lon: string }> | undefined;
+    const results = JSON.parse(body) as Array<{ lat: string; lon: string }>;
+    const [first] = results;
     if (!first) {
       return null;
     }
@@ -220,10 +221,18 @@ export const getEventCoordinates = async (eventId: string): Promise<Coordinates 
     return null;
   }
 
-  if (event.coordinates?.latitude !== null && event.coordinates?.longitude !== null) {
+  const existingCoordinates = event.coordinates;
+  const latitude = existingCoordinates?.latitude;
+  const longitude = existingCoordinates?.longitude;
+  if (
+    latitude !== null &&
+    latitude !== undefined &&
+    longitude !== null &&
+    longitude !== undefined
+  ) {
     return {
-      latitude: event.coordinates.latitude,
-      longitude: event.coordinates.longitude,
+      latitude,
+      longitude,
     };
   }
 
