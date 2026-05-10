@@ -1,40 +1,17 @@
-import AWS from "aws-sdk";
-import {
-  AuthenticationDetails,
-  CognitoUser,
-  CognitoUserAttribute,
-  CognitoUserPool,
-  CognitoUserSession,
-} from "amazon-cognito-identity-js";
+import crypto from "node:crypto";
+import { promisify } from "node:util";
 
-import { CLIENT_ID, USER_POOL_ID } from "../helpers/constants.js";
-import { createUser } from "./userService.js";
+import createHttpError from "http-errors";
 
-const poolData = {
-  UserPoolId: USER_POOL_ID,
-  ClientId: CLIENT_ID,
-};
+import { ONE_HOUR, ONE_MONTH } from "../helpers/constants.js";
+import { SessionCollection } from "../database/models/session.js";
+import { createUser, getUserByEmail, getUserById } from "./userService.js";
 
-const userPool = new CognitoUserPool(poolData);
-const cognito = new AWS.CognitoIdentityServiceProvider();
-
-const getCognitoUser = (email: string) => {
-  return new CognitoUser({
-    Username: email,
-    Pool: userPool,
-  });
-};
-
-const getAuthDetails = (email: string, password: string) => {
-  return new AuthenticationDetails({
-    Username: email,
-    Password: password,
-  });
-};
+const scryptAsync = promisify(crypto.scrypt);
+const PASSWORD_KEY_LENGTH = 64;
 
 export type AuthSession = {
   accessToken: string;
-  idToken: string;
   refreshToken: string;
 };
 
@@ -49,186 +26,174 @@ type LoginPayload = {
   password: string;
 };
 
-type ResetPasswordPayload = {
-  email: string;
-  code: string;
-  newPassword: string;
+type LogoutPayload = {
+  accessToken?: string;
+  refreshToken?: string;
 };
 
-type ConfirmEmailPayload = {
-  email: string;
-  code: string;
+const normalizeEmail = (email: string) => email.toLowerCase().trim();
+
+const generateToken = () => crypto.randomBytes(48).toString("base64url");
+
+const hashToken = (token: string) => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
+
+const hashPassword = async (password: string) => {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derivedKey = (await scryptAsync(password, salt, PASSWORD_KEY_LENGTH)) as Buffer;
+
+  return `${salt}:${derivedKey.toString("hex")}`;
+};
+
+const verifyPassword = async (password: string, passwordHash: string) => {
+  const [salt, storedKey] = passwordHash.split(":");
+
+  if (!salt || !storedKey) {
+    return password === passwordHash;
+  }
+
+  const derivedKey = (await scryptAsync(password, salt, PASSWORD_KEY_LENGTH)) as Buffer;
+  const storedBuffer = Buffer.from(storedKey, "hex");
+
+  return (
+    storedBuffer.length === derivedKey.length &&
+    crypto.timingSafeEqual(storedBuffer, derivedKey)
+  );
+};
+
+const createSession = async (userId: string): Promise<AuthSession> => {
+  const accessToken = generateToken();
+  const refreshToken = generateToken();
+  const now = Date.now();
+
+  await SessionCollection.create({
+    userId,
+    accessTokenHash: hashToken(accessToken),
+    refreshTokenHash: hashToken(refreshToken),
+    accessTokenValidUntil: new Date(now + ONE_HOUR),
+    refreshTokenValidUntil: new Date(now + ONE_MONTH),
+  });
+
+  return { accessToken, refreshToken };
 };
 
 export const registerUserService = async ({
   email,
   password,
-  group,
+  group: _group,
 }: RegisterPayload) => {
-  return new Promise<{ message: string; userSub: string }>((resolve, reject) => {
-    const attributeList = [
-      new CognitoUserAttribute({
-        Name: "email",
-        Value: email,
-      }),
-    ];
+  const normalizedEmail = normalizeEmail(email);
+  const existingUser = await getUserByEmail(normalizedEmail);
 
-    userPool.signUp(email, password, attributeList, [], (err, result) => {
-      if (err || !result?.userSub) {
-        return reject(err ?? new Error("Failed to register user"));
-      }
+  if (existingUser) {
+    throw createHttpError(409, "User with this email already exists");
+  }
 
-      const userSub = result.userSub;
-
-      if (group) {
-        cognito
-          .adminAddUserToGroup({
-            UserPoolId: USER_POOL_ID,
-            Username: email,
-            GroupName: group,
-          })
-          .promise()
-          .then(async () => {
-            await createUser({
-              nickname: email,
-              password,
-              cognitoSub: userSub,
-            });
-            resolve({ message: "User registered and added to group", userSub });
-          })
-          .catch((groupError) => {
-            console.error("Помилка додавання до групи:", groupError);
-            reject(groupError);
-          });
-      } else {
-        resolve({ message: "User registered successfully", userSub });
-      }
-    });
+  const user = await createUser({
+    email: normalizedEmail,
+    nickname: normalizedEmail,
+    password: await hashPassword(password),
   });
+
+  return {
+    message: "User registered successfully",
+    userId: user._id.toString(),
+  };
 };
 
 export const loginService = async ({ email, password }: LoginPayload): Promise<AuthSession> => {
-  return new Promise<AuthSession>((resolve, reject) => {
-    getCognitoUser(email).authenticateUser(getAuthDetails(email, password), {
-      onSuccess: (result) => {
-        resolve({
-          accessToken: result.getAccessToken().getJwtToken(),
-          idToken: result.getIdToken().getJwtToken(),
-          refreshToken: result.getRefreshToken().getToken(),
-        });
-      },
-      onFailure: (err) => {
-        console.log("Login Service error", err);
-        reject(err);
-      },
-    });
-  });
+  const normalizedEmail = normalizeEmail(email);
+  const user = await getUserByEmail(normalizedEmail);
+
+  if (!user || !(await verifyPassword(password, user.password))) {
+    throw createHttpError(401, "Invalid email or password");
+  }
+
+  if (!user.password.includes(":")) {
+    user.password = await hashPassword(password);
+  }
+
+  if (!user.email) {
+    user.email = normalizedEmail;
+  }
+
+  if (user.isModified("password") || user.isModified("email")) {
+    await user.save();
+  }
+
+  return createSession(user._id.toString());
 };
 
-export const logoutService = async () => {
-  return new Promise<{ message: string }>((resolve, reject) => {
-    try {
-      const currentUser = userPool.getCurrentUser();
-      if (!currentUser) {
-        return resolve({ message: "User already logged out" });
-      }
-      currentUser.signOut();
-      resolve({ message: "Logged out successfully" });
-    } catch (err) {
-      reject(err);
-    }
-  });
+export const logoutService = async ({ accessToken, refreshToken }: LogoutPayload) => {
+  const tokenFilters = [];
+
+  if (accessToken) {
+    tokenFilters.push({ accessTokenHash: hashToken(accessToken) });
+  }
+
+  if (refreshToken) {
+    tokenFilters.push({ refreshTokenHash: hashToken(refreshToken) });
+  }
+
+  if (tokenFilters.length === 0) {
+    return { message: "User already logged out" };
+  }
+
+  await SessionCollection.deleteMany({ $or: tokenFilters });
+
+  return { message: "Logged out successfully" };
 };
 
 export const refreshService = async (refreshToken: string): Promise<AuthSession> => {
-  try {
-    const result = await cognito
-      .initiateAuth({
-        AuthFlow: "REFRESH_TOKEN_AUTH",
-        ClientId: CLIENT_ID,
-        AuthParameters: {
-          REFRESH_TOKEN: refreshToken,
-        },
-      })
-      .promise();
+  const refreshTokenHash = hashToken(refreshToken);
+  const session = await SessionCollection.findOne({ refreshTokenHash });
 
-    const tokens = result.AuthenticationResult;
-
-    if (!tokens?.AccessToken || !tokens.IdToken) {
-      throw new Error("Failed to refresh session");
-    }
-
-    return {
-      accessToken: tokens.AccessToken,
-      idToken: tokens.IdToken,
-      refreshToken: tokens.RefreshToken ?? refreshToken,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    throw new Error(`Failed to refresh session: ${message}`);
+  if (!session || session.refreshTokenValidUntil.getTime() <= Date.now()) {
+    throw createHttpError(401, "Invalid refresh token");
   }
+
+  const accessToken = generateToken();
+  const nextRefreshToken = generateToken();
+  const now = Date.now();
+
+  session.accessTokenHash = hashToken(accessToken);
+  session.refreshTokenHash = hashToken(nextRefreshToken);
+  session.accessTokenValidUntil = new Date(now + ONE_HOUR);
+  session.refreshTokenValidUntil = new Date(now + ONE_MONTH);
+
+  await session.save();
+
+  return {
+    accessToken,
+    refreshToken: nextRefreshToken,
+  };
 };
 
-export const requestResetEmailService = async (email: string) => {
-  return new Promise<{ message: string }>((resolve, reject) => {
-    const cognitoUser = getCognitoUser(email);
-    cognitoUser.forgotPassword({
-      onSuccess: () => resolve({ message: "Password reset email sent" }),
-      onFailure: (err) => reject(err),
-    });
+export const requestResetEmailService = async (_email: string) => {
+  throw createHttpError(501, "Password reset email is not configured");
+};
+
+export const resetPasswordService = async () => {
+  throw createHttpError(501, "Password reset is not configured");
+};
+
+export const disableUserService = async (_email: string) => {
+  throw createHttpError(501, "User disabling is not configured");
+};
+
+export const enableUserService = async (_email: string) => {
+  throw createHttpError(501, "User enabling is not configured");
+};
+
+export const getUserByAccessToken = async (accessToken: string) => {
+  const session = await SessionCollection.findOne({
+    accessTokenHash: hashToken(accessToken),
   });
-};
 
-export const resetPasswordService = async ({ email, code, newPassword }: ResetPasswordPayload) => {
-  return new Promise<{ message: string }>((resolve, reject) => {
-    const cognitoUser = getCognitoUser(email);
-    cognitoUser.confirmPassword(code, newPassword, {
-      onSuccess: () => resolve({ message: "Password successfully reset" }),
-      onFailure: (err) => reject(err),
-    });
-  });
-};
-
-export const confirmEmailService = async ({ email, code }: ConfirmEmailPayload) => {
-  return new Promise<{ message: string; result: string | undefined }>((resolve, reject) => {
-    const cognitoUser = getCognitoUser(email);
-    cognitoUser.confirmRegistration(code, true, (err, result) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve({ message: "Email successfully confirmed", result });
-    });
-  });
-};
-
-export const disableUserService = async (email: string) => {
-  try {
-    await cognito
-      .adminDisableUser({
-        UserPoolId: USER_POOL_ID,
-        Username: email,
-      })
-      .promise();
-
-    return { message: "User has been disabled successfully" };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    throw new Error(`Failed to disable user: ${message}`);
+  if (!session || session.accessTokenValidUntil.getTime() <= Date.now()) {
+    throw createHttpError(401, "Invalid token");
   }
-};
 
-export const enableUserService = async (email: string) => {
-  try {
-    await cognito
-      .adminEnableUser({
-        UserPoolId: USER_POOL_ID,
-        Username: email,
-      })
-      .promise();
-
-    return { message: "User has been enabled successfully" };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    throw new Error(`Failed to enable user: ${message}`);
-  }
+  return getUserById(session.userId.toString());
 };

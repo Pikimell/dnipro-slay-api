@@ -116,14 +116,13 @@ export const swaggerDocument = {
         properties: {
           email: { type: "string", format: "email" },
           password: { type: "string", format: "password" },
-          group: { type: "string" },
         },
       },
       RegisterResponse: {
         type: "object",
         properties: {
           message: { type: "string" },
-          userSub: { type: "string" },
+          userId: { type: "string" },
         },
       },
       AuthSession: {
@@ -131,7 +130,6 @@ export const swaggerDocument = {
         properties: {
           accessToken: { type: "string" },
           refreshToken: { type: "string" },
-          idToken: { type: "string" },
           tokenType: { type: "string", example: "Bearer" },
         },
       },
@@ -239,6 +237,11 @@ export const swaggerDocument = {
       post: {
         tags: ["Auth"],
         summary: "Вийти з акаунта",
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({
+          type: "object",
+          properties: { refreshToken: { type: "string" } },
+        }),
         responses: {
           "200": {
             description: "Успішний вихід",
@@ -271,15 +274,15 @@ export const swaggerDocument = {
     "/auth/reset/request": {
       post: {
         tags: ["Auth"],
-        summary: "Надіслати лист для скидання пароля",
+        summary: "Запит скидання пароля",
         requestBody: jsonBody({
           type: "object",
           required: ["email"],
           properties: { email: { type: "string", format: "email" } },
         }),
         responses: {
-          "200": {
-            description: "Лист надіслано",
+          "501": {
+            description: "Надсилання листів для скидання пароля не налаштоване",
             content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
           },
         },
@@ -288,39 +291,18 @@ export const swaggerDocument = {
     "/auth/reset/confirm": {
       post: {
         tags: ["Auth"],
-        summary: "Підтвердити код і встановити новий пароль",
+        summary: "Скидання пароля",
         requestBody: jsonBody({
           type: "object",
-          required: ["email", "code", "newPassword"],
+          required: ["email", "newPassword"],
           properties: {
             email: { type: "string", format: "email" },
-            code: { type: "string" },
             newPassword: { type: "string", format: "password" },
           },
         }),
         responses: {
-          "200": {
-            description: "Пароль оновлено",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
-          },
-        },
-      },
-    },
-    "/auth/confirm": {
-      post: {
-        tags: ["Auth"],
-        summary: "Підтвердити email",
-        requestBody: jsonBody({
-          type: "object",
-          required: ["email", "code"],
-          properties: {
-            email: { type: "string", format: "email" },
-            code: { type: "string" },
-          },
-        }),
-        responses: {
-          "200": {
-            description: "Email підтверджено",
+          "501": {
+            description: "Скидання пароля не налаштоване",
             content: { "application/json": { schema: { $ref: "#/components/schemas/Message" } } },
           },
         },

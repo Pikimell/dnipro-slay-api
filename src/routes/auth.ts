@@ -15,6 +15,4 @@ router.post("/reset/request", authControllers.requestResetEmailController);
 
 router.post("/reset/confirm", authControllers.resetPasswordController);
 
-router.post("/confirm", authControllers.confirmEmailController);
-
 export default router;

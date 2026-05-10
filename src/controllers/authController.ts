@@ -31,7 +31,6 @@ export const loginController: RequestHandler = async (req, res, next) => {
     res.status(200).json({
       accessToken: session.accessToken,
       refreshToken: session.refreshToken,
-      idToken: session.idToken,
       tokenType: "Bearer",
     });
   } catch (err) {
@@ -39,9 +38,16 @@ export const loginController: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const logoutController: RequestHandler = async (_req, res, next) => {
+export const logoutController: RequestHandler = async (req, res, next) => {
   try {
-    await authServices.logoutService();
+    const authHeader = req.headers["authorization"];
+    const [bearer, accessToken] = authHeader?.split(" ") ?? [];
+    const { refreshToken } = req.body as { refreshToken?: string };
+
+    await authServices.logoutService({
+      accessToken: bearer === "Bearer" ? accessToken : undefined,
+      refreshToken,
+    });
 
     res.status(200).json({ message: "Logged out successfully!" });
   } catch (err) {
@@ -63,7 +69,6 @@ export const refreshController: RequestHandler = async (req, res, next) => {
     res.status(200).json({
       accessToken: session.accessToken,
       refreshToken: session.refreshToken,
-      idToken: session.idToken,
       tokenType: "Bearer",
     });
   } catch (err) {
@@ -83,23 +88,8 @@ export const requestResetEmailController: RequestHandler = async (req, res, next
 
 export const resetPasswordController: RequestHandler = async (req, res, next) => {
   try {
-    const { email, code, newPassword } = req.body as {
-      email: string;
-      code: string;
-      newPassword: string;
-    };
-    await authServices.resetPasswordService({ email, code, newPassword });
+    await authServices.resetPasswordService();
     res.status(200).json({ message: "Password successfully reset" });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const confirmEmailController: RequestHandler = async (req, res, next) => {
-  try {
-    const { email, code } = req.body as { email: string; code: string };
-    await authServices.confirmEmailService({ email, code });
-    res.status(200).json({ message: "Email confirmed successfully!" });
   } catch (err) {
     next(err);
   }
