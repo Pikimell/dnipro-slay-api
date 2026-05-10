@@ -28,20 +28,20 @@
 ```
 
 ## Auth (`/auth`)
-- `POST /auth/register` — реєстрація користувача (AWS Cognito), опціонально додавання до групи.  
+- `POST /auth/register` — реєстрація користувача, опціонально додавання до групи.  
   **Body:** `{ email: string, password: string, group?: string }`  
-  **201:** `{ message: string, userSub: string }`
+  **201:** `{ message: string, userId: string }`
 
-- `POST /auth/login` — логін у Cognito. Повертає токени для клієнта; кукі не використовуються.  
+- `POST /auth/login` — логін. Повертає токени для клієнта; кукі не використовуються.  
   **Body:** `{ email: string, password: string }`  
-  **200:** `{ accessToken: string, refreshToken: string, idToken: string, tokenType: "Bearer" }`
+  **200:** `{ accessToken: string, refreshToken: string, tokenType: "Bearer" }`
 
 - `POST /auth/logout` — вихід (статусний, без кукі).  
   **200:** `{ message: "Logged out successfully!" }`
 
-- `POST /auth/refresh` — оновлення сесії у Cognito за refresh-токеном.  
+- `POST /auth/refresh` — оновлення сесії за refresh-токеном.  
   **Body:** `{ refreshToken: string }`  
-  **200:** `{ accessToken: string, refreshToken: string, idToken: string, tokenType: "Bearer" }`  
+  **200:** `{ accessToken: string, refreshToken: string, tokenType: "Bearer" }`  
   **400:** `{ message: "Missing refreshToken" }`
 
 - `POST /auth/reset/request` — ініціює відправку листа для скидання пароля.  
@@ -51,10 +51,6 @@
 - `POST /auth/reset/confirm` — підтвердження коду та встановлення нового пароля.  
   **Body:** `{ email: string, code: string, newPassword: string }`  
   **200:** `{ message: "Password successfully reset" }`
-
-- `POST /auth/confirm` — підтвердження email у Cognito.  
-  **Body:** `{ email: string, code: string }`  
-  **200:** `{ message: "Email confirmed successfully!" }`
 
 ## Події (`/events`)
 - `GET /events` — отримати список подій з пагінацією та фільтрами.  
