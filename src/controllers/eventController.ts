@@ -82,6 +82,23 @@ export const updateEventController: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const updateEventSavedMetricController: RequestHandler = async (req, res, next) => {
+  try {
+    const eventId = req.params.eventId;
+    const saved = Boolean((req.body as { saved?: boolean }).saved);
+    const updatedEvent = await eventServices.updateEventSavedMetric(eventId, saved);
+
+    if (!updatedEvent) {
+      res.status(404).json({ message: "Event not found" });
+      return;
+    }
+
+    res.status(200).json(updatedEvent);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const deleteEventController: RequestHandler = async (req, res, next) => {
   try {
     const eventId = req.params.eventId;
@@ -103,6 +120,17 @@ export const getUpcomingEventsController: RequestHandler = async (req, res, next
     const { pagination } = parseEventQuery(req.query);
     const limit = parseLimit(req.query.limit, pagination.perPage);
     const events = await eventServices.getUpcomingEvents(limit);
+    res.status(200).json(events);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getPopularEventsController: RequestHandler = async (req, res, next) => {
+  try {
+    const { pagination } = parseEventQuery(req.query);
+    const limit = parseLimit(req.query.limit, pagination.perPage);
+    const events = await eventServices.getPopularEvents(limit);
     res.status(200).json(events);
   } catch (err) {
     next(err);
@@ -132,9 +160,13 @@ export const searchEventsController: RequestHandler = async (req, res, next) => 
       return;
     }
 
-    const limit = parseLimit(req.query.limit, pagination.perPage || 15);
-    const events = await eventServices.searchEvents(query, limit);
-    res.status(200).json(events);
+    const perPage = parseLimit(req.query.limit, pagination.perPage || 15);
+    const result = await eventServices.searchEvents({
+      ...pagination,
+      perPage,
+      title: query,
+    });
+    res.status(200).json(result);
   } catch (err) {
     next(err);
   }

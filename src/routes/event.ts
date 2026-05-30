@@ -6,10 +6,12 @@ const router = Router();
 
 router.get("/search", eventControllers.searchEventsController);
 router.get("/upcoming", eventControllers.getUpcomingEventsController);
+router.get("/popular", eventControllers.getPopularEventsController);
 router.get("/:eventId/coordinates", eventControllers.getEventCoordinatesController);
 router.get("/", eventControllers.getAllEventsController);
 router.get("/:eventId", eventControllers.getEventByIdController);
 router.post("/parse-events", eventControllers.parseEventsController);
+router.post("/:eventId/saved-metric", eventControllers.updateEventSavedMetricController);
 router.post("/", eventControllers.createEventController);
 router.put("/:eventId", eventControllers.updateEventController);
 router.delete("/:eventId", eventControllers.deleteEventController);

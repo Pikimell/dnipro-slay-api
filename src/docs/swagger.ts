@@ -74,11 +74,26 @@ const jsonBody = (schema: unknown) => ({
   },
 });
 
+const paginationParameters = [
+  {
+    name: 'page',
+    in: 'query',
+    description: 'Номер сторінки. Починається з 1.',
+    schema: { type: 'integer', default: 1, minimum: 1 },
+  },
+  {
+    name: 'perPage',
+    in: 'query',
+    description: 'Кількість подій на сторінці.',
+    schema: { type: 'integer', default: 10, minimum: 1 },
+  },
+];
+
 export const swaggerDocument = {
   openapi: '3.0.3',
   info: {
     title: 'Dnipro Slay API',
-    version: '2.0.0',
+    version: '3.0.0',
     description:
       'Документація REST API для подій, авторизації та збережених подій.',
   },
@@ -169,6 +184,18 @@ export const swaggerDocument = {
           duration: { type: 'string' },
           site: { type: 'string' },
           coordinates: { $ref: '#/components/schemas/Coordinates' },
+          viewsCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Кількість переглядів події.',
+            default: 0,
+          },
+          savedCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Кількість додавань події в обране.',
+            default: 0,
+          },
           createdAt: { type: 'string', format: 'date-time' },
           updatedAt: { type: 'string', format: 'date-time' },
         },
@@ -180,8 +207,14 @@ export const swaggerDocument = {
           perPage: { type: 'integer' },
           totalPages: { type: 'integer' },
           totalItems: { type: 'integer' },
-          hasNextPage: { type: 'boolean' },
-          hasPreviousPage: { type: 'boolean' },
+          hasNextPage: {
+            type: 'boolean',
+            description: 'true, якщо існує наступна сторінка.',
+          },
+          hasPreviousPage: {
+            type: 'boolean',
+            description: 'true, якщо існує попередня сторінка.',
+          },
           events: {
             type: 'array',
             items: { $ref: '#/components/schemas/Event' },
@@ -351,17 +384,10 @@ export const swaggerDocument = {
       get: {
         tags: ['Events'],
         summary: 'Отримати список подій',
+        description:
+          'Повертає сторінку подій. Для пагінації використовуйте `page` і `perPage`; відповідь містить metadata `totalPages`, `totalItems`, `hasNextPage` і `hasPreviousPage`.',
         parameters: [
-          {
-            name: 'page',
-            in: 'query',
-            schema: { type: 'integer', default: 1 },
-          },
-          {
-            name: 'perPage',
-            in: 'query',
-            schema: { type: 'integer', default: 10 },
-          },
+          ...paginationParameters,
           {
             name: 'sortField',
             in: 'query',
@@ -425,24 +451,19 @@ export const swaggerDocument = {
       get: {
         tags: ['Events'],
         summary: 'Пошук подій',
+        description:
+          'Пошук за заголовком, описом або місцем. Відповідь пагінована так само, як `GET /events`.',
         parameters: [
           { name: 'title', in: 'query', schema: { type: 'string' } },
           { name: 'q', in: 'query', schema: { type: 'string' } },
-          {
-            name: 'limit',
-            in: 'query',
-            schema: { type: 'integer', default: 15 },
-          },
+          ...paginationParameters,
         ],
         responses: {
           '200': {
-            description: 'Знайдені події',
+            description: 'Сторінка знайдених подій',
             content: {
               'application/json': {
-                schema: {
-                  type: 'array',
-                  items: { $ref: '#/components/schemas/Event' },
-                },
+                schema: { $ref: '#/components/schemas/EventsPage' },
               },
             },
           },
@@ -451,6 +472,35 @@ export const swaggerDocument = {
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/Message' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/events/popular': {
+      get: {
+        tags: ['Events'],
+        summary: 'Отримати популярні події',
+        description:
+          'Повертає популярні майбутні події. Популярність рахується на сервері за сигналами інтересу: додавання в обране має більшу вагу, ніж перегляд (`savedCount * 3 + viewsCount`).',
+        parameters: [
+          {
+            name: 'limit',
+            in: 'query',
+            description: 'Максимальна кількість популярних подій у відповіді.',
+            schema: { type: 'integer', default: 10, minimum: 1 },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Популярні події',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/Event' },
+                },
               },
             },
           },

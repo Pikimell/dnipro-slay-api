@@ -1,6 +1,7 @@
 import type { FilterQuery } from "mongoose";
 
 import { EventCollection, type Event } from "../database/models/event.js";
+import { SavedEventCollection } from "../database/models/savedEvent.js";
 import { calculatePaginationData } from "../utils/calculatePaginationData.js";
 import { parseItems } from "../parsers/parser.js";
 import https from "node:https";
@@ -87,10 +88,67 @@ export const getAllEvents = async ({
 
 export const getEventById = async (eventId: string) => {
   try {
-    return await EventCollection.findById(eventId);
+    return await EventCollection.findByIdAndUpdate(
+      eventId,
+      { $inc: { viewsCount: 1 } },
+      { new: true }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     throw new Error("Error fetching event: " + message);
+  }
+};
+
+export const getPopularEvents = async (limit = 10) => {
+  try {
+    const now = new Date();
+    const events = await EventCollection.aggregate([
+      {
+        $match: {
+          $or: [{ dateTime: { $gte: now } }, { dateTime: null }],
+        },
+      },
+      {
+        $lookup: {
+          from: SavedEventCollection.collection.name,
+          localField: "_id",
+          foreignField: "eventId",
+          as: "savedEvents",
+        },
+      },
+      {
+        $addFields: {
+          actualSavedCount: { $size: "$savedEvents" },
+        },
+      },
+      {
+        $addFields: {
+          computedSavedCount: {
+            $max: ["$actualSavedCount", { $ifNull: ["$savedCount", 0] }],
+          },
+        },
+      },
+      {
+        $addFields: {
+          popularityScore: {
+            $add: [
+              { $multiply: ["$computedSavedCount", 3] },
+              { $ifNull: ["$viewsCount", 0] },
+            ],
+          },
+          savedCount: "$computedSavedCount",
+          viewsCount: { $ifNull: ["$viewsCount", 0] },
+        },
+      },
+      { $sort: { popularityScore: -1, savedCount: -1, viewsCount: -1, dateTime: 1, createdAt: -1 } },
+      { $limit: limit },
+      { $project: { savedEvents: 0, actualSavedCount: 0, computedSavedCount: 0, popularityScore: 0 } },
+    ]);
+
+    return events;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    throw new Error("Error fetching popular events: " + message);
   }
 };
 
@@ -109,6 +167,27 @@ export const updateEvent = async (eventId: string, eventData: Partial<Event>) =>
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     throw new Error("Error updating event: " + message);
+  }
+};
+
+export const updateEventSavedMetric = async (eventId: string, saved: boolean) => {
+  try {
+    const event = await EventCollection.findById(eventId);
+    if (!event) {
+      return null;
+    }
+
+    const currentSavedCount = event.savedCount ?? 0;
+    const nextSavedCount = saved ? currentSavedCount + 1 : Math.max(currentSavedCount - 1, 0);
+
+    return await EventCollection.findByIdAndUpdate(
+      eventId,
+      { savedCount: nextSavedCount },
+      { new: true }
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    throw new Error("Error updating event saved metric: " + message);
   }
 };
 
@@ -133,17 +212,30 @@ export const getUpcomingEvents = async (limit = 10) => {
   }
 };
 
-export const searchEvents = async (query: string, limit = 15) => {
+export const searchEvents = async ({ page = 1, perPage = 15, sort = { dateTime: 1 }, title = "" }: EventQueryOptions) => {
   try {
-    return await EventCollection.find({
+    const offset = (page - 1) * perPage;
+    const searchQuery = title.trim();
+    const query: FilterQuery<Event> = {
       $or: [
-        { title: { $regex: query, $options: "i" } },
-        { description: { $regex: query, $options: "i" } },
-        { place: { $regex: query, $options: "i" } },
+        { title: { $regex: searchQuery, $options: "i" } },
+        { description: { $regex: searchQuery, $options: "i" } },
+        { place: { $regex: searchQuery, $options: "i" } },
       ],
-    })
-      .sort({ dateTime: 1 })
-      .limit(limit);
+    };
+
+    const totalEvents = await EventCollection.countDocuments(query);
+    const eventsList = await EventCollection.find(query)
+      .sort(sort)
+      .skip(offset)
+      .limit(perPage);
+
+    const paginationInfo = calculatePaginationData(totalEvents, page, perPage);
+
+    return {
+      ...paginationInfo,
+      events: eventsList,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     throw new Error("Error searching events: " + message);

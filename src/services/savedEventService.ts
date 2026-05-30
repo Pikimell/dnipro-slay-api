@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+import { EventCollection } from "../database/models/event.js";
 import { SavedEventCollection, type SavedEvent } from "../database/models/savedEvent.js";
 
 const toObjectId = (id: string) => new mongoose.Types.ObjectId(id);
@@ -7,14 +8,20 @@ const toObjectId = (id: string) => new mongoose.Types.ObjectId(id);
 type SavePayload = {userId:string;eventId:string; };
 
 export const saveEventForUser = async ({ userId, eventId }: SavePayload) => {
-  return SavedEventCollection.create({
+  const saved = await SavedEventCollection.create({
     userId: toObjectId(userId),
     eventId: toObjectId(eventId),
   });
+  await EventCollection.findByIdAndUpdate(eventId, { $inc: { savedCount: 1 } });
+  return saved;
 };
 
 export const removeSavedEvent = async (savedEventId: string) => {
-  return SavedEventCollection.findByIdAndDelete(savedEventId);
+  const removed = await SavedEventCollection.findByIdAndDelete(savedEventId);
+  if (removed) {
+    await EventCollection.findByIdAndUpdate(removed.eventId, { $inc: { savedCount: -1 } });
+  }
+  return removed;
 };
 
 export const getSavedEventsByUser = async (userId: string) => {
@@ -39,6 +46,7 @@ export const toggleSavedEvent = async ({ userId, eventId }: SavePayload) => {
 
   if (existing) {
     await SavedEventCollection.findByIdAndDelete(existing._id);
+    await EventCollection.findByIdAndUpdate(eventId, { $inc: { savedCount: -1 } });
     return { saved: false };
   }
 
