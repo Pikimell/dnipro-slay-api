@@ -11,6 +11,7 @@ const scryptAsync = promisify(crypto.scrypt);
 const PASSWORD_KEY_LENGTH = 64;
 
 export type AuthSession = {
+  userId: string;
   accessToken: string;
   refreshToken: string;
 };
@@ -75,7 +76,11 @@ const createSession = async (userId: string): Promise<AuthSession> => {
     refreshTokenValidUntil: new Date(now + ONE_MONTH),
   });
 
-  return { accessToken, refreshToken };
+  return {
+    userId,
+    accessToken,
+    refreshToken,
+  };
 };
 
 export const registerUserService = async ({
@@ -165,6 +170,7 @@ export const refreshService = async (refreshToken: string): Promise<AuthSession>
   await session.save();
 
   return {
+    userId: session.userId.toString(),
     accessToken,
     refreshToken: nextRefreshToken,
   };

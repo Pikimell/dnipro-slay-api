@@ -29,6 +29,7 @@ export const loginController: RequestHandler = async (req, res, next) => {
     const session = await authServices.loginService({ email, password });
 
     res.status(200).json({
+      userId: session.userId,
       accessToken: session.accessToken,
       refreshToken: session.refreshToken,
       tokenType: "Bearer",
@@ -67,6 +68,7 @@ export const refreshController: RequestHandler = async (req, res, next) => {
     const session = await authServices.refreshService(refreshToken);
 
     res.status(200).json({
+      userId: session.userId,
       accessToken: session.accessToken,
       refreshToken: session.refreshToken,
       tokenType: "Bearer",

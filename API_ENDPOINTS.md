@@ -34,14 +34,14 @@
 
 - `POST /auth/login` — логін. Повертає токени для клієнта; кукі не використовуються.  
   **Body:** `{ email: string, password: string }`  
-  **200:** `{ accessToken: string, refreshToken: string, tokenType: "Bearer" }`
+  **200:** `{ userId: string, accessToken: string, refreshToken: string, tokenType: "Bearer" }`
 
 - `POST /auth/logout` — вихід (статусний, без кукі).  
   **200:** `{ message: "Logged out successfully!" }`
 
 - `POST /auth/refresh` — оновлення сесії за refresh-токеном.  
   **Body:** `{ refreshToken: string }`  
-  **200:** `{ accessToken: string, refreshToken: string, tokenType: "Bearer" }`  
+  **200:** `{ userId: string, accessToken: string, refreshToken: string, tokenType: "Bearer" }`  
   **400:** `{ message: "Missing refreshToken" }`
 
 - `POST /auth/reset/request` — ініціює відправку листа для скидання пароля.  

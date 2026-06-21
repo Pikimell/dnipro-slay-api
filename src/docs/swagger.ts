@@ -144,6 +144,7 @@ export const swaggerDocument = {
       AuthSession: {
         type: 'object',
         properties: {
+          userId: { type: 'string' },
           accessToken: { type: 'string' },
           refreshToken: { type: 'string' },
           tokenType: { type: 'string', example: 'Bearer' },
