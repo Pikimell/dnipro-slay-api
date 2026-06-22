@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 
 import createHttpError from "http-errors";
 
-import { ONE_HOUR, ONE_MONTH } from "../helpers/constants.js";
+import { getGoogleOAuthClientId, ONE_HOUR, ONE_MONTH } from "../helpers/constants.js";
 import { SessionCollection } from "../database/models/session.js";
 import { createUser, getUserByEmail, getUserById } from "./userService.js";
 
@@ -11,6 +11,7 @@ const scryptAsync = promisify(crypto.scrypt);
 const PASSWORD_KEY_LENGTH = 64;
 
 export type AuthSession = {
+  userId: string;
   accessToken: string;
   refreshToken: string;
 };
@@ -26,9 +27,20 @@ type LoginPayload = {
   password: string;
 };
 
+type GoogleLoginPayload = {
+  idToken: string;
+};
+
 type LogoutPayload = {
   accessToken?: string;
   refreshToken?: string;
+};
+
+type GoogleTokenInfo = {
+  aud?: string;
+  sub?: string;
+  email?: string;
+  email_verified?: boolean | string;
 };
 
 const normalizeEmail = (email: string) => email.toLowerCase().trim();
@@ -75,7 +87,11 @@ const createSession = async (userId: string): Promise<AuthSession> => {
     refreshTokenValidUntil: new Date(now + ONE_MONTH),
   });
 
-  return { accessToken, refreshToken };
+  return {
+    userId,
+    accessToken,
+    refreshToken,
+  };
 };
 
 export const registerUserService = async ({
@@ -125,6 +141,57 @@ export const loginService = async ({ email, password }: LoginPayload): Promise<A
   return createSession(user._id.toString());
 };
 
+const verifyGoogleIDToken = async (idToken: string) => {
+  if (!idToken) {
+    throw createHttpError(400, "Missing Google ID token");
+  }
+
+  const expectedAudience = getGoogleOAuthClientId();
+  if (!expectedAudience) {
+    throw createHttpError(503, "Google sign-in is not configured");
+  }
+
+  const response = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
+  );
+
+  if (!response.ok) {
+    throw createHttpError(401, "Invalid Google ID token");
+  }
+
+  const tokenInfo = (await response.json()) as GoogleTokenInfo;
+
+  if (tokenInfo.aud !== expectedAudience) {
+    throw createHttpError(401, "Google ID token audience does not match this app");
+  }
+
+  if (String(tokenInfo.email_verified) !== "true" || !tokenInfo.email) {
+    throw createHttpError(401, "Google email is not verified");
+  }
+
+  return {
+    email: normalizeEmail(tokenInfo.email),
+    subject: tokenInfo.sub,
+  };
+};
+
+export const loginWithGoogleService = async ({
+  idToken,
+}: GoogleLoginPayload): Promise<AuthSession> => {
+  const googleUser = await verifyGoogleIDToken(idToken);
+  let user = await getUserByEmail(googleUser.email);
+
+  if (!user) {
+    user = await createUser({
+      email: googleUser.email,
+      nickname: googleUser.email,
+      password: await hashPassword(generateToken()),
+    });
+  }
+
+  return createSession(user._id.toString());
+};
+
 export const logoutService = async ({ accessToken, refreshToken }: LogoutPayload) => {
   const tokenFilters = [];
 
@@ -165,6 +232,7 @@ export const refreshService = async (refreshToken: string): Promise<AuthSession>
   await session.save();
 
   return {
+    userId: session.userId.toString(),
     accessToken,
     refreshToken: nextRefreshToken,
   };

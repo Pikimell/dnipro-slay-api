@@ -1,12 +1,7 @@
 import type { RequestHandler } from "express";
 import mongoose from "mongoose";
 
-import {
-  MONGODB_DB,
-  MONGODB_PASSWORD,
-  MONGODB_URL,
-  MONGODB_USER,
-} from "../helpers/constants.js";
+import { getMongoConfig } from "../helpers/constants.js";
 
 let cachedDb: typeof mongoose | null = null;
 
@@ -18,13 +13,10 @@ export const initMongoDB: RequestHandler = async (_req, _res, next) => {
   }
 
   try {
-    const user = MONGODB_USER;
-    const pwd = MONGODB_PASSWORD;
-    const url = MONGODB_URL;
-    const db = MONGODB_DB;
+    const { user, password, url, db } = getMongoConfig();
 
     const connection = await mongoose.connect(
-      `mongodb+srv://${user}:${pwd}@${url}/${db}?retryWrites=true&w=majority&ssl=true`
+      `mongodb+srv://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${url}/${db}?retryWrites=true&w=majority&ssl=true`
     );
 
     console.log("Mongo connection successfully established!");

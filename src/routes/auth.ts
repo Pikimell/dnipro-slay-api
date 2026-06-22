@@ -7,6 +7,8 @@ router.post("/register", authControllers.registerUserController);
 
 router.post("/login", authControllers.loginController);
 
+router.post("/google", authControllers.googleLoginController);
+
 router.post("/logout", authControllers.logoutController);
 
 router.post("/refresh", authControllers.refreshController);

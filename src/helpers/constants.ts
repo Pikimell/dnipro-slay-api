@@ -5,7 +5,11 @@ export const ONE_DAY = ONE_HOUR * 24;
 export const ONE_WEEK = ONE_DAY * 7;
 export const ONE_MONTH = ONE_DAY * 31;
 
-export const MONGODB_USER = env("MONGODB_USER");
-export const MONGODB_PASSWORD = env("MONGODB_PASSWORD");
-export const MONGODB_URL = env("MONGODB_URL");
-export const MONGODB_DB = env("MONGODB_DB");
+export const getMongoConfig = () => ({
+  user: env("MONGODB_USER"),
+  password: env("MONGODB_PASSWORD"),
+  url: env("MONGODB_URL"),
+  db: env("MONGODB_DB"),
+});
+
+export const getGoogleOAuthClientId = () => env("GOOGLE_OAUTH_CLIENT_ID", "");
