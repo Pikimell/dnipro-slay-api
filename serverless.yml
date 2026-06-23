@@ -5,6 +5,14 @@ frameworkVersion: '4'
 provider:
   name: aws
   runtime: nodejs22.x
+  environment:
+    MONGODB_USER: ${env:MONGODB_USER}
+    MONGODB_PASSWORD: ${env:MONGODB_PASSWORD}
+    MONGODB_URL: ${env:MONGODB_URL}
+    MONGODB_DB: ${env:MONGODB_DB}
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID}
+    TOKEN: ${env:TOKEN}
 
 package:
   patterns:
