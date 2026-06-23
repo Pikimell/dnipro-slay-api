@@ -6,6 +6,14 @@ provider:
   name: aws
   runtime: nodejs22.x
 
+package:
+  patterns:
+    - '!**'
+    - dist/**
+    - node_modules/**
+    - package.json
+    - package-lock.json
+
 functions:
   api:
     handler: dist/index.handler

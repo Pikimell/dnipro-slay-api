@@ -10,25 +10,28 @@ import {
 
 let cachedDb: typeof mongoose | null = null;
 
-export const initMongoDB: RequestHandler = async (_req, _res, next) => {
+export const connectMongoDB = async () => {
   if (cachedDb && mongoose.connection.readyState === 1) {
     console.log("Already connected!");
-    next();
     return;
   }
 
+  const user = MONGODB_USER;
+  const pwd = MONGODB_PASSWORD;
+  const url = MONGODB_URL;
+  const db = MONGODB_DB;
+
+  const connection = await mongoose.connect(
+    `mongodb+srv://${user}:${pwd}@${url}/${db}?retryWrites=true&w=majority&ssl=true`
+  );
+
+  console.log("Mongo connection successfully established!");
+  cachedDb = connection;
+};
+
+export const initMongoDB: RequestHandler = async (_req, _res, next) => {
   try {
-    const user = MONGODB_USER;
-    const pwd = MONGODB_PASSWORD;
-    const url = MONGODB_URL;
-    const db = MONGODB_DB;
-
-    const connection = await mongoose.connect(
-      `mongodb+srv://${user}:${pwd}@${url}/${db}?retryWrites=true&w=majority&ssl=true`
-    );
-
-    console.log("Mongo connection successfully established!");
-    cachedDb = connection;
+    await connectMongoDB();
     next();
   } catch (e) {
     console.log("Error while setting up mongo connection", e);
